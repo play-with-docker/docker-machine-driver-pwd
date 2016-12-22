@@ -23,6 +23,8 @@ Before using it please make sure of the following:
 Copy the following bash script and name it `docker-machine-driver-pwd` somewhere in your PATH
 
 ```bash
+#!/bin/bash
+
 docker run --net=host \
     -v $MACHINE_STORAGE_PATH:$MACHINE_STORAGE_PATH \
     -e MACHINE_PLUGIN_TOKEN \

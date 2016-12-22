@@ -20,24 +20,13 @@ Before using it please make sure of the following:
 
 ### Easy way
 
-Copy the following bash script and name it `docker-machine-driver-pwd` somewhere in your PATH
-
-```bash
-#!/bin/bash
-
-docker run --net=host \
-    -v $MACHINE_STORAGE_PATH:$MACHINE_STORAGE_PATH \
-    -e MACHINE_PLUGIN_TOKEN \
-    --user $(id -u):$(id -g) \
-    --rm franela/docker-machine-driver-pwd
-```
+Download the binary for your platform from the ["releases"]("https://github.com/franela/play-with-docker/releases") section and place it somewhere in your PATH
 
 
 ### Hard way
 
 Use `go get github.com/franela/docker-machine-driver-pwd` and make sure that
 `docker-machine-driver-pwd` is located somwhere in your PATH
-
 
 
 

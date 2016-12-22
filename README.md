@@ -5,7 +5,7 @@ Docker machine PWD driver
 
 ## Getting started
 
-This driver tricks machine and allows to create / remove PWD sessions remotely. 
+This driver tricks machine and allows to create / remove PWD instances remotely. 
 As PWD uses static certificates, it's mandatory to set a different machine storage path
 to avoid the driver overwrite your current docker-machine certs
 

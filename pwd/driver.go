@@ -1,11 +1,11 @@
 package pwd
 
 import (
-	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/docker/machine/libmachine/cert"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/mcnutils"
@@ -28,6 +29,11 @@ type Driver struct {
 	URL          string
 	Created      bool
 	InstanceName string
+}
+
+type instance struct {
+	Name string
+	IP   string
 }
 
 var notImplemented error = errors.New("Not implemented")
@@ -65,15 +71,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 }
 
 func (d *Driver) Create() error {
-	err := setupCerts(d)
-	if err != nil {
-		return fmt.Errorf("Error configuring PWD certs: %v ", err)
-	}
-	type instance struct {
-		Name string
-		IP   string
-	}
-
 	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances", d.Hostname, d.Port, d.SessionId), "", nil)
 
 	if err != nil || resp.StatusCode != http.StatusOK {
@@ -85,6 +82,12 @@ func (d *Driver) Create() error {
 	i := &instance{}
 
 	json.NewDecoder(resp.Body).Decode(i)
+
+	err = setupCerts(d, *i)
+	if err != nil {
+		return fmt.Errorf("Error configuring PWD certs: %v ", err)
+	}
+
 	d.IPAddress = i.IP
 	d.InstanceName = i.Name
 	d.URL = fmt.Sprintf("tcp://ip%s-2375.%s:%s", strings.Replace(d.IPAddress, ".", "_", -1), d.Hostname, d.SSLPort)
@@ -93,34 +96,62 @@ func (d *Driver) Create() error {
 
 }
 
-func setupCerts(d *Driver) error {
-	resp, err := http.Get(fmt.Sprintf("http://%s:%s/keys", d.Hostname, d.Port))
+func setupCerts(d *Driver, i instance) error {
+	hosts := append([]string{}, i.IP, i.Name, "localhost")
+	bits := 2048
+	machineName := d.GetMachineName()
+	org := mcnutils.GetUsername() + "." + machineName
+	caPath := filepath.Join(d.StorePath, "certs", "ca.pem")
+	caKeyPath := filepath.Join(d.StorePath, "certs", "ca-key.pem")
+
+	serverCertPath := d.ResolveStorePath("server.pem")
+	serverKeyPath := d.ResolveStorePath("server-key.pem")
+
+	err := cert.GenerateCert(&cert.Options{
+		Hosts:       hosts,
+		CertFile:    serverCertPath,
+		KeyFile:     serverKeyPath,
+		CAFile:      caPath,
+		CAKeyFile:   caKeyPath,
+		Org:         org,
+		Bits:        bits,
+		SwarmMaster: false,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error generating server cert: %s", err)
+	}
+
+	type certs struct {
+		ServerCert []byte `json:"server_cert"`
+		ServerKey  []byte `json:"server_key"`
+	}
+
+	c := certs{}
+	serverCert, err := ioutil.ReadFile(serverCertPath)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("Error reading file: %s", serverCertPath)
+	}
+	serverKey, err := ioutil.ReadFile(serverKeyPath)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("Error reading file: %s", serverCertPath)
+	}
+	c.ServerCert = serverCert
+	c.ServerKey = serverKey
+	b, jsonErr := json.Marshal(c)
+	if jsonErr != nil {
+		log.Println(jsonErr)
+		return errors.New("Error encoding json")
+	}
+
+	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances/%s/keys", d.Hostname, d.Port, d.SessionId, i.Name), "application/json", bytes.NewReader(b))
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println(err, resp)
-		return errors.New("Error fetching keys to setup certs")
+		return errors.New("Error setting up keys on PWD server")
 	}
 	defer resp.Body.Close()
-
-	tr := tar.NewReader(resp.Body)
-
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			// end of tar archive
-			break
-		}
-		// TODO handle errors
-		storageCert, _ := os.Create(d.ResolveStorePath(hdr.Name))
-		machineCert, _ := os.Create(filepath.Join(d.StorePath, "certs", hdr.Name))
-		defer storageCert.Close()
-		defer machineCert.Close()
-		w := io.MultiWriter(storageCert, machineCert)
-
-		if _, err := io.Copy(w, tr); err != nil {
-			log.Println(err)
-			return errors.New("Error copying certs")
-		}
-	}
 	return nil
 }
 
@@ -169,9 +200,11 @@ func (d *Driver) Kill() error {
 }
 
 func (d *Driver) PreCreateCheck() error {
-	if d.StorePath == filepath.Join(mcnutils.GetHomeDir(), ".docker", "machine") {
-		return errors.New("Default storage path is discouraged when using PWD driver. Use -s flag or MACHINE_STORAGE_PATH env variable to set one")
-	}
+	/*
+		if d.StorePath == filepath.Join(mcnutils.GetHomeDir(), ".docker", "machine") {
+			return errors.New("Default storage path is discouraged when using PWD driver. Use -s flag or MACHINE_STORAGE_PATH env variable to set one")
+		}
+	*/
 	if d.SessionId == "" {
 		return errors.New("Session Id must be specified")
 	}

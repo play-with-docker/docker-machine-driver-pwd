@@ -20,7 +20,7 @@ Before using it please make sure of the following:
 
 ### Easy way
 
-Download the binary for your platform from the [releases](https://github.com/franela/play-with-docker/releases) section and place it somewhere in your PATH
+Download the release bundle from the [releases](https://github.com/franela/play-with-docker/releases) section and place the binary that corresponds to your platform it somewhere in your PATH
 
 
 

@@ -97,15 +97,31 @@ func (d *Driver) Create() error {
 }
 
 func setupCerts(d *Driver, i instance) error {
-	hosts := append([]string{}, i.IP, i.Name, "localhost")
+
+	hosts := append([]string{}, i.IP, fmt.Sprintf("ip%s-2375.%s", strings.Replace(i.IP, ".", "_", -1), d.Hostname), i.Name, "localhost")
 	bits := 2048
 	machineName := d.GetMachineName()
 	org := mcnutils.GetUsername() + "." + machineName
 	caPath := filepath.Join(d.StorePath, "certs", "ca.pem")
 	caKeyPath := filepath.Join(d.StorePath, "certs", "ca-key.pem")
 
+	clientCertPath := filepath.Join(d.StorePath, "certs", "cert.pem")
+	clientKeyPath := filepath.Join(d.StorePath, "certs", "key.pem")
+
 	serverCertPath := d.ResolveStorePath("server.pem")
 	serverKeyPath := d.ResolveStorePath("server-key.pem")
+
+	if err := mcnutils.CopyFile(caPath, d.ResolveStorePath("ca.pem")); err != nil {
+		return fmt.Errorf("Copying ca.pem to machine dir failed: %s", err)
+	}
+
+	if err := mcnutils.CopyFile(clientCertPath, d.ResolveStorePath("cert.pem")); err != nil {
+		return fmt.Errorf("Copying cert.pem to machine dir failed: %s", err)
+	}
+
+	if err := mcnutils.CopyFile(clientKeyPath, d.ResolveStorePath("key.pem")); err != nil {
+		return fmt.Errorf("Copying key.pem to machine dir failed: %s", err)
+	}
 
 	err := cert.GenerateCert(&cert.Options{
 		Hosts:       hosts,

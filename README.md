@@ -1,4 +1,4 @@
-# docker-machine-pwd-priver
+# docker-machine-pwd-driver
 
 Docker machine PWD driver
 

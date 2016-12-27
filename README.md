@@ -37,19 +37,18 @@ Creating an instance:
 
 ```
 # Create a session in play-with-docker.com and set env variable
-export MACHINE_STORAGE_PATH="/tmp/pwd"
-export PWD_SESSION_ID="my-session-id"
-docker-machine create -d pwd node1
+docker-machine create -d pwd --pwd-session-id <your pwd session id> node1
 eval $(docker-machine node1)
 docker ps
 ```
+
+Alternatively you can set the env variable `PWD_SESSION_ID` to avoid passing it as a flag every time.
 
 
 Remove an instance
 
 
 ```
-# Make sure PWD_SESSION_ID is still set
 docker-machine rm -f node1
 ```
 

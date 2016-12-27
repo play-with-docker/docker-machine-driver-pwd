@@ -6,13 +6,9 @@ Docker machine PWD driver
 ## Getting started
 
 This driver tricks machine and allows to create / remove PWD instances remotely. 
-As PWD uses static certificates, it's mandatory to set a different machine storage path
-to avoid the driver overwrite your current docker-machine certs
-
 
 Before using it please make sure of the following:
 
-- Set $MACHINE_STORAGE_PATH env variable to an *existing* directory (i.e /tmp/pwd)
 - Create a session in PWD and set PWD_SESSION_ID env variable or use --pwd-session-id flag when creating an instance
 
 

@@ -5,7 +5,7 @@ Docker machine PWD driver
 
 ## Getting started
 
-This driver tricks machine and allows to create / remove PWD instances remotely. 
+This driver tricks machine and allows to create / remove [play-with-docker](http://play-with-docker.com) instances remotely. 
 
 Before using it please make sure of the following:
 

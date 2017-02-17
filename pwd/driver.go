@@ -90,7 +90,7 @@ func (d *Driver) Create() error {
 
 	d.IPAddress = i.IP
 	d.InstanceName = i.Name
-	d.URL = fmt.Sprintf("tcp://ip%s-2375.%s:%s", strings.Replace(d.IPAddress, ".", "_", -1), d.Hostname, d.SSLPort)
+	d.URL = fmt.Sprintf("tcp://pwd%s-2375.%s:%s", strings.Replace(d.IPAddress, ".", "_", -1), d.Hostname, d.SSLPort)
 	d.Created = true
 	return nil
 
@@ -98,7 +98,7 @@ func (d *Driver) Create() error {
 
 func setupCerts(d *Driver, i instance) error {
 
-	hosts := append([]string{}, i.IP, fmt.Sprintf("ip%s-2375.%s", strings.Replace(i.IP, ".", "_", -1), d.Hostname), i.Name, "localhost")
+	hosts := append([]string{}, i.IP, fmt.Sprintf("pwd%s-2375.%s", strings.Replace(i.IP, ".", "_", -1), d.Hostname), i.Name, "localhost")
 	bits := 2048
 	machineName := d.GetMachineName()
 	org := mcnutils.GetUsername() + "." + machineName

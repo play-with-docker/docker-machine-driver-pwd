@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,15 +46,9 @@ func dump(infos ...interface{}) {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
-			Name:   "pwd-session-id",
-			Usage:  "PWD session id to create the instance",
-			EnvVar: "PWD_SESSION_ID",
-		},
-		mcnflag.StringFlag{
-			Name:   "pwd-hostname",
-			Usage:  "PWD hostname create machines from",
-			EnvVar: "PWD_HOSTNAME",
-			Value:  "play-with-docker.com",
+			Name:   "pwd-url",
+			Usage:  "PWD session URL",
+			EnvVar: "PWD_URL",
 		},
 		mcnflag.StringFlag{
 			Name:   "pwd-ssl-port",
@@ -243,8 +238,16 @@ func (d *Driver) Restart() error {
 
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	dump(opts)
-	d.SessionId = opts.String("pwd-session-id")
-	d.Hostname = opts.String("pwd-hostname")
+	pwdUrl, err := url.Parse(opts.String("pwd-url"))
+	if err != nil {
+		return errors.New("Incorrect PWD URL")
+	}
+	if d.SessionId = strings.TrimPrefix(pwdUrl.Path, "/p/"); len(d.SessionId) == 0 {
+		return errors.New("Incorrect PWD URL")
+	}
+	d.Hostname = pwdUrl.Hostname()
+	fmt.Println(d.Hostname, d.SessionId)
+
 	d.SSLPort = opts.String("pwd-ssl-port")
 	d.Port = opts.String("pwd-port")
 	return nil

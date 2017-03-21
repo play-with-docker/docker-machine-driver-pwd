@@ -246,7 +246,6 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		return errors.New("Incorrect PWD URL")
 	}
 	d.Hostname = pwdUrl.Hostname()
-	fmt.Println(d.Hostname, d.SessionId)
 
 	d.SSLPort = opts.String("pwd-ssl-port")
 	d.Port = opts.String("pwd-port")

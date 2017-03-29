@@ -9,7 +9,7 @@ This driver tricks machine and allows to create / remove [play-with-docker](http
 
 Before using it please make sure of the following:
 
-- Create a session in PWD and set PWD_SESSION_ID env variable or use --pwd-session-id flag when creating an instance
+- Create a session in PWD and set PWD_URL env variable or use --pwd-url flag when creating an instance
 
 
 ## Installing
@@ -32,13 +32,13 @@ Use `go get github.com/franela/docker-machine-driver-pwd` and make sure that
 Creating an instance:
 
 ```
-# Create a session in play-with-docker.com and set env variable
-docker-machine create -d pwd --pwd-session-id <your pwd session id> node1
+# Create a session in play-with-docker.com and set the PWD_URL env variable
+docker-machine create -d pwd --pwd-url <pwd_url> node1
 eval $(docker-machine node1)
 docker ps
 ```
 
-Alternatively you can set the env variable `PWD_SESSION_ID` to avoid passing it as a flag every time.
+Alternatively you can set the env variable `PWD_URL` to avoid passing it as a flag every time.
 
 
 Remove an instance
@@ -58,5 +58,4 @@ i.e:
 ```
 export PWD_PORT=3000
 export PWD_SSL_PORT=3001
-export PWD_HOSTNAME=localhost
 ```

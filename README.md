@@ -5,7 +5,7 @@ Docker machine PWD driver
 
 ## Getting started
 
-This driver tricks machine and allows to create / remove [play-with-docker](http://play-with-docker.com) instances remotely. 
+This driver tricks machine and allows to create / remove [play-with-docker](http://play-with-docker.com) instances remotely.
 
 Before using it please make sure of the following:
 
@@ -16,7 +16,7 @@ Before using it please make sure of the following:
 
 ### Easy way
 
-Download the release bundle from the [releases](https://github.com/franela/play-with-docker/releases) section and place the binary that corresponds to your platform it somewhere in your PATH
+Download the release bundle from the [releases](https://github.com/franela/docker-machine-driver-pwd/releases) section and place the binary that corresponds to your platform it somewhere in your PATH
 
 
 

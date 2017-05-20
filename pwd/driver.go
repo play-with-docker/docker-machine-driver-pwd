@@ -19,6 +19,7 @@ import (
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/mcnutils"
 	"github.com/docker/machine/libmachine/state"
+	"github.com/google/uuid"
 )
 
 type Driver struct {
@@ -35,6 +36,15 @@ type Driver struct {
 type instance struct {
 	Name string
 	IP   string
+}
+
+type instanceConfig struct {
+	Alias      string
+	ServerCert []byte
+	ServerKey  []byte
+	CACert     []byte
+	Cert       []byte
+	Key        []byte
 }
 
 var notImplemented error = errors.New("Not implemented")
@@ -66,7 +76,22 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 }
 
 func (d *Driver) Create() error {
-	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances", d.Hostname, d.Port, d.SessionId), "", nil)
+	sessionPrefix := d.SessionId[:8]
+	alias := strings.Replace(uuid.New().String(), "-", "", -1)
+
+	host := fmt.Sprintf("pwd%s-%s-2375.%s", alias, sessionPrefix, d.Hostname)
+
+	conf := instanceConfig{Alias: alias}
+	err := setupCerts(d, host, &conf)
+	if err != nil {
+		return fmt.Errorf("Error configuring PWD certs: %v ", err)
+	}
+
+	b, jsonErr := json.Marshal(conf)
+	if jsonErr != nil {
+		return jsonErr
+	}
+	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances", d.Hostname, d.Port, d.SessionId), "application/json", bytes.NewReader(b))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
@@ -78,22 +103,17 @@ func (d *Driver) Create() error {
 
 	json.NewDecoder(resp.Body).Decode(i)
 
-	err = setupCerts(d, *i)
-	if err != nil {
-		return fmt.Errorf("Error configuring PWD certs: %v ", err)
-	}
-
 	d.IPAddress = i.IP
 	d.InstanceName = i.Name
-	d.URL = fmt.Sprintf("tcp://pwd%s-2375.%s:%s", strings.Replace(d.IPAddress, ".", "_", -1), d.Hostname, d.SSLPort)
+	d.URL = fmt.Sprintf("tcp://%s:%s", host, d.SSLPort)
 	d.Created = true
 	return nil
 
 }
 
-func setupCerts(d *Driver, i instance) error {
+func setupCerts(d *Driver, host string, c *instanceConfig) error {
 
-	hosts := append([]string{}, i.IP, fmt.Sprintf("pwd%s-2375.%s", strings.Replace(i.IP, ".", "_", -1), d.Hostname), i.Name, "localhost")
+	hosts := append([]string{}, host, "localhost")
 	bits := 2048
 	machineName := d.GetMachineName()
 	org := mcnutils.GetUsername() + "." + machineName
@@ -133,12 +153,6 @@ func setupCerts(d *Driver, i instance) error {
 		return fmt.Errorf("error generating server cert: %s", err)
 	}
 
-	type certs struct {
-		ServerCert []byte `json:"server_cert"`
-		ServerKey  []byte `json:"server_key"`
-	}
-
-	c := certs{}
 	serverCert, err := ioutil.ReadFile(serverCertPath)
 	if err != nil {
 		log.Println(err)
@@ -149,20 +163,27 @@ func setupCerts(d *Driver, i instance) error {
 		log.Println(err)
 		return fmt.Errorf("Error reading file: %s", serverCertPath)
 	}
+	caCert, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("Error reading file: %s", caPath)
+	}
+	cert, err := ioutil.ReadFile(clientCertPath)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("Error reading file: %s", clientCertPath)
+	}
+	key, err := ioutil.ReadFile(clientKeyPath)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("Error reading file: %s", clientKeyPath)
+	}
 	c.ServerCert = serverCert
 	c.ServerKey = serverKey
-	b, jsonErr := json.Marshal(c)
-	if jsonErr != nil {
-		log.Println(jsonErr)
-		return errors.New("Error encoding json")
-	}
+	c.CACert = caCert
+	c.Cert = cert
+	c.Key = key
 
-	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances/%s/keys", d.Hostname, d.Port, d.SessionId, i.Name), "application/json", bytes.NewReader(b))
-	if err != nil || resp.StatusCode != http.StatusOK {
-		log.Println(err, resp)
-		return errors.New("Error setting up keys on PWD server")
-	}
-	defer resp.Body.Close()
 	return nil
 }
 
@@ -245,7 +266,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	if d.SessionId = strings.TrimPrefix(pwdUrl.Path, "/p/"); len(d.SessionId) == 0 {
 		return errors.New("Incorrect PWD URL")
 	}
-	d.Hostname = pwdUrl.Hostname()
+	d.Hostname = pwdUrl.Host
 
 	d.SSLPort = opts.String("pwd-ssl-port")
 	d.Port = opts.String("pwd-port")

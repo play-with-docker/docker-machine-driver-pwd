@@ -16,13 +16,13 @@ Before using it please make sure of the following:
 
 ### Easy way
 
-Download the release bundle from the [releases](https://github.com/franela/docker-machine-driver-pwd/releases) section and place the binary that corresponds to your platform it somewhere in your PATH
+Download the release bundle from the [releases](https://github.com/play-with-docker/docker-machine-driver-pwd/releases) section and place the binary that corresponds to your platform it somewhere in your PATH
 
 
 
 ### Hard way
 
-Use `go get github.com/franela/docker-machine-driver-pwd` and make sure that
+Use `go get github.com/play-with-docker/docker-machine-driver-pwd` and make sure that
 `docker-machine-driver-pwd` is located somwhere in your PATH
 
 

@@ -2,7 +2,11 @@ package pwd
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -107,6 +112,13 @@ func (d *Driver) Create() error {
 	d.InstanceName = i.Name
 	d.URL = fmt.Sprintf("tcp://%s:%s", host, d.SSLPort)
 	d.Created = true
+	d.SSLPort = "1022"
+	d.SSHUser = fmt.Sprintf("%s-%s", strings.Replace(i.IP, ".", "-", -1), sessionPrefix)
+
+	if err = generatePrivateKey(d.GetSSHKeyPath()); err != nil {
+		return fmt.Errorf("Could not create private key %v", err)
+		return err
+	}
 	return nil
 
 }
@@ -208,15 +220,15 @@ func (d *Driver) GetMachineName() string {
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
-	return "", notImplemented
+	return d.Hostname, nil
 }
 
 func (d *Driver) GetSSHPort() (int, error) {
-	return 0, notImplemented
+	return strconv.Atoi(d.SSLPort)
 }
 
 func (d *Driver) GetSSHUsername() string {
-	return "unsupported"
+	return d.SSHUser
 }
 
 func (d *Driver) GetURL() (string, error) {
@@ -279,4 +291,31 @@ func (d *Driver) Start() error {
 
 func (d *Driver) Stop() error {
 	return notImplemented
+}
+
+func generatePrivateKey(keyPath string) error {
+	reader := rand.Reader
+	bitSize := 2048
+
+	key, err := rsa.GenerateKey(reader, bitSize)
+	if err != nil {
+		return err
+	}
+
+	outFile, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	var privateKey = &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	}
+
+	err = pem.Encode(outFile, privateKey)
+	if err != nil {
+		return err
+	}
+	return nil
 }

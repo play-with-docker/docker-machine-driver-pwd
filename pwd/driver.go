@@ -30,8 +30,10 @@ import (
 type Driver struct {
 	*drivers.BaseDriver
 	SessionId    string
+	Scheme       string
 	Hostname     string
 	SSLPort      string
+	SSHHostname  string
 	Port         string
 	URL          string
 	Created      bool
@@ -39,8 +41,11 @@ type Driver struct {
 }
 
 type instance struct {
-	Name string
-	IP   string
+	Proxy_host   string
+	Routable_ip  string
+	Session_host string
+	Name         string
+	IP           string
 }
 
 type instanceConfig struct {
@@ -96,7 +101,7 @@ func (d *Driver) Create() error {
 	if jsonErr != nil {
 		return jsonErr
 	}
-	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances", d.Hostname, d.Port, d.SessionId), "application/json", bytes.NewReader(b))
+	resp, err := http.Post(fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId), "application/json", bytes.NewReader(b))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
@@ -110,10 +115,10 @@ func (d *Driver) Create() error {
 
 	d.IPAddress = i.IP
 	d.InstanceName = i.Name
-	d.URL = fmt.Sprintf("tcp://%s:%s", host, d.SSLPort)
+	d.URL = fmt.Sprintf("%s@direct.labs.play-with-docker.com", i.Proxy_host)
 	d.Created = true
-	d.SSLPort = "1022"
-	d.SSHUser = fmt.Sprintf("%s-%s", strings.Replace(i.IP, ".", "-", -1), sessionPrefix)
+	d.SSHUser = i.Proxy_host
+	d.SSHHostname = "direct.labs.play-with-docker.com"
 
 	if err = generatePrivateKey(d.GetSSHKeyPath()); err != nil {
 		return fmt.Errorf("Could not create private key %v", err)
@@ -202,7 +207,9 @@ func setupCerts(d *Driver, host string, c *instanceConfig) error {
 var counter int = 0
 
 func (d *Driver) DriverName() string {
-	defer func() { counter++ }()
+	defer func() {
+		counter++
+	}()
 	// Only after creation and when driver is queried for provisioning return "none".
 	// This is a hack to avoid SSH provisioning while keeping "pwd" as the machine driver
 	if d.Created && counter == 1 {
@@ -220,7 +227,7 @@ func (d *Driver) GetMachineName() string {
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
-	return d.Hostname, nil
+	return d.SSHHostname, nil
 }
 
 func (d *Driver) GetSSHPort() (int, error) {
@@ -256,7 +263,8 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) Remove() error {
-	r, _ := http.NewRequest("DELETE", fmt.Sprintf("http://%s:%s/sessions/%s/instances/%s", d.Hostname, d.Port, d.SessionId, d.InstanceName), nil)
+	//https://labs.play-with-docker.com/sessions/b99ouva62ceg009uvkjg/instances/b99ouva6_b99ovba62ceg009uvkk0
+	r, _ := http.NewRequest("DELETE", fmt.Sprintf("%s://%s:%s/sessions/%s/instances/%s", d.Scheme, d.Hostname, d.SSLPort, d.SessionId, d.InstanceName), nil)
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println(err, resp)
@@ -279,6 +287,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		return errors.New("Incorrect PWD URL")
 	}
 	d.Hostname = pwdUrl.Host
+	d.Scheme = pwdUrl.Scheme
 
 	d.SSLPort = opts.String("pwd-ssl-port")
 	d.Port = opts.String("pwd-port")
@@ -302,7 +311,7 @@ func generatePrivateKey(keyPath string) error {
 		return err
 	}
 
-	outFile, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	outFile, err := os.OpenFile(keyPath, os.O_WRONLY | os.O_CREATE | os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}

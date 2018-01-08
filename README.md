@@ -34,8 +34,7 @@ Creating an instance:
 ```
 # Create a session in play-with-docker.com and set the PWD_URL env variable
 docker-machine create -d pwd --pwd-url <pwd_url> node1
-eval $(docker-machine env node1)
-docker ps
+ssh `docker-machine url node2`
 ```
 
 Alternatively you can set the env variable `PWD_URL` to avoid passing it as a flag every time.
